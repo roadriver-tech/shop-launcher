@@ -16,9 +16,9 @@
 ## 最短可跑命令
 
 ```sh
-python3 src/review_gui.py          # 启动 GUI：左侧两组（决策判例 / 隐含准则）
-python3 src/review_gui.py check    # 两表结构、枚举、互链校验
-python3 src/review_gui.py sync     # 处置=采纳 → docs/决策准则.md（幂等重写）
+python3 src/gui.py            # 启动 GUI：左侧两组（决策判例 / 隐含准则）
+python3 src/gui.py check      # 两表结构、枚举、互链校验
+python3 src/gui.py sync       # 处置=采纳 → docs/决策准则.md（幂等重写）
 ```
 
 GUI 里选一条 → 选标注 → 填理由 → 保存：全量校验通过才写盘，理由自动追加 `data/纠偏记录.md`；准则标「采纳」即时渲染进成文法。
@@ -27,16 +27,16 @@ GUI 里选一条 → 选标注 → 填理由 → 保存：全量校验通过才�
 
 ```
 决策判例 ──暴露准则──> 准则候选 ──人标「采纳」──> docs/决策准则.md（成文法·业务）
-                                              （review_gui.py sync，幂等）
+                                              （gui.py sync，幂等）
 框架层：AGENTS.md 条文（标尺 / 检查§1–4 / 硬约束§n）
-        └─ 修订 → 同步 src/assess.py → --seed 重放 → git diff 即影响面
+        └─ 修订 → 同步 src/core/rules.py（绑定测试把关）→ --seed 重放 → git diff 即影响面
 ```
 
 个例纠正先分诊「偶发还是通则」：偶发 → 改判那一行；通则 → 修准则（业务层改准则候选再标采纳，框架层改 `AGENTS.md` 条文）。
 
 ## 规则
 
-- **改判是终审**：元评估表 `--seed` 重放不覆盖 `维持/改判` 行（`assess.preserve_reviewed`）
+- **改判是终审**：元评估表 `--seed` 重放不覆盖 `维持/改判` 行（`core/annotate.preserve_reviewed`，政策常量 `schema.REPLAY_KEEP`）
 - **表态不推进证据**：L1 只由本地数据到达、L2 只由实测触发；标注只说明准则当前未被反驳
 - **保存前全量校验**：枚举、必填（改判/采纳必须有理由）、两表互链，不通过拒绝写盘
 - **C 类不出题**：C 的处置是实地动作（探店、盲测、摆摊）回填数据
@@ -47,5 +47,5 @@ GUI 里选一条 → 选标注 → 填理由 → 保存：全量校验通过才�
 
 ## 边界
 
-- **标注全在本地**：外部标注平台（Label Studio）已出局；GUI 数据层无图形环境可跑测试（63 项回归）
+- **标注全在本地**：外部标注平台（Label Studio）已出局；GUI 数据层无图形环境可跑测试（78 项回归）
 - **改字段、标尺、判定规则先改 `AGENTS.md`**，本篇与 README 记一笔

@@ -1,6 +1,6 @@
 # 偏差地图使用说明
 
-`src/deviation.py` 的用户文档，对应 [TODO.md](../TODO.md) Phase 3。回答一件事：实测数据回填后，怎么汇总成跨场景的「预测值 vs 实测值」，得出每个环节在该品类、该城市的可信度。
+`src/cli.py deviation` 的用户文档（领域逻辑在 `src/core/deviation.py`），对应 [TODO.md](../TODO.md) Phase 3。回答一件事：实测数据回填后，怎么汇总成跨场景的「预测值 vs 实测值」，得出每个环节在该品类、该城市的可信度。
 
 偏差地图是 `AGENTS.md` 产出 ②，比单个场景的成败更有复用价值：它回答的不是「这家店开没开成」，而是「AI 在滁州热锅串串上，哪个环节的判断可以少审、哪个必须人工兜底」。
 
@@ -20,8 +20,8 @@
 ## 最短可跑命令
 
 ```sh
-python3 src/deviation.py            # 汇总
-python3 src/deviation.py --check    # 只校验 schema 与偏差率
+python3 src/cli.py deviation            # 汇总
+python3 src/cli.py deviation --check    # 只校验 schema 与偏差率
 ```
 
 无实测数据时（当前状态）：
@@ -31,7 +31,7 @@ python3 src/deviation.py --check    # 只校验 schema 与偏差率
 等探店 4 数据与丰全巷摆摊记录回填（TODO.md 3.3）后再汇总。
 ```
 
-退出码 `2`——**报缺口，不输出空结论**，与 `ledger.py` 缺 L1 拒绝计算同一策略。
+退出码 `2`——**报缺口，不输出空结论**，与 `cli.py ledger` 缺 L1 拒绝计算同一策略。
 
 回填 3 行后：
 
@@ -52,4 +52,4 @@ python3 src/deviation.py --check    # 只校验 schema 与偏差率
 
 - **只有 L2 行进图**。预测值是 A 类推导，实测值必须来自实地；等级不够的行 `validate` 拒收
 - **可信度按品类/城市分组**。跨品类平均没有意义，不给全局分数
-- **数据未到位前无结论**。3.3 是 ⏳ 外部依赖（探店 4 数据 + 丰全巷摆摊记录），脚本只等数据，不代填
+- **数据未到位前无结论**。3.3 是 ⏳ 外部依赖（探店 4 数据 + 丰全巷摆摊记录），本命令只等数据，不代填

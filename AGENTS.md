@@ -9,7 +9,7 @@
 | `AGENTS.md` | 框架的操作说明 | 字段、标尺、判定规则、流程 |
 | `docs/` | 框架规格与工具用法 | 维度与规则的正式论述 + 各工具用户文档（assess / alignment / deviation / ledger）；`AI 辅助开店.md` 为自 memory 迁入的原文，不改 |
 | `data/` | 案例实例 | 一个场景一份，按下方字段填写；另有纠偏记录（见「人机对齐」） |
-| `src/` | 数据处理工具 | CLI（`ledger.py`，L1 缺失拒绝计算）、流水（`assess.py`，本文件准则的可执行投影）、复核 GUI（`review_gui.py`，本地标注维持/改判）。不引入外部标注平台 |
+| `src/` | 数据处理工具 | 核心层（`core/`：schema、本文件条文的可执行投影、标注政策、对照表、偏差地图、算账）、统一 CLI（`cli.py`）、复核 GUI（`gui.py`，本地标注维持/改判）。不引入外部标注平台 |
 | `tests/` | 回归测试 | `present()`、共享数据层、一致性检查、判例重放与复核标注（GUI 数据层），无图形环境可跑 |
 | `README.md` | 当前状态 | 现状、下一步、判据 |
 
@@ -69,12 +69,12 @@
 | 判例·实质决策 | AI 按知识库做出的开店决策 | `data/决策判例.csv`（决策/内容/依据材料/暴露准则/证据等级/复核/理由） | **复核**：维持 / 改判（新内容 + 理由） |
 | 判例·隐含准则 | 决策中暴露的准则（成文法候选），与决策互链 | `data/准则候选.csv`（准则/说明/来源决策/处置/理由） | **处置**：采纳 / 否决（+理由） |
 | 成文法·业务 | 被采纳的开店决策准则 | `docs/决策准则.md`（按处置自动渲染，幂等） | 即上行的采纳标注 |
-| 成文法·框架 | 元准则：如何评估 | 本文件条文（`标尺`、`检查§1–4`…），`src/assess.py` 为投影 | 修订本文件 → 同步 assess → 重放 |
+| 成文法·框架 | 元准则：如何评估 | 本文件条文（`标尺`、`检查§1–4`…），`src/core/rules.py` 为投影 | 修订本文件 → 同步 rules → 重放（`tests/test_charter_binding.py` 把关） |
 
 **具体决策由 AI 产出并自检，人不逐条裁决。** 人的介入始于抽查，落在两处：
 
-- **判例层（便宜，抽查制）**：用本地 GUI（`python3 src/review_gui.py`）或直接编辑 CSV。决策标 `维持`（默认）或 `改判`（必填新内容与理由，理由自动追加 `data/纠偏记录.md`）；准则标 `采纳` 或 `否决`（必填理由），采纳即渲染进 `docs/决策准则.md`。**改判是终审**。
-- **法条层（贵，归纳制）**：个例纠正分诊「偶发还是通则」。业务通则 → 修订准则行（直接改 CSV 文本再标采纳）；框架通则 → 修订本文件条文（带 § 编号）、同步 `assess.py`、`--seed` 重放。判例的 `暴露准则`/`依据法条` 列可反查受影响对象。
+- **判例层（便宜，抽查制）**：用本地 GUI（`python3 src/gui.py`）或直接编辑 CSV。决策标 `维持`（默认）或 `改判`（必填新内容与理由，理由自动追加 `data/纠偏记录.md`）；准则标 `采纳` 或 `否决`（必填理由），采纳即渲染进 `docs/决策准则.md`。**改判是终审**。
+- **法条层（贵，归纳制）**：个例纠正分诊「偶发还是通则」。业务通则 → 修订准则行（直接改 CSV 文本再标采纳）；框架通则 → 修订本文件条文（带 § 编号）、同步 `src/core/rules.py`（绑定测试不红即到位）、`--seed` 重放。判例的 `暴露准则`/`依据法条` 列可反查受影响对象。
 
 **证据等级与人的表态脱钩**：L1 只由本地实地数据到达触发，L2 只由实测触发，「人同意」不推进任何等级。
 
@@ -95,20 +95,21 @@
 
 ## 产出
 
-1. **能力对照表** —— 单场景全部环节的字段汇总，落 `data/`（首例：[`data/能力对照表.csv`](data/能力对照表.csv)，由 `src/assess.py --seed` 生成、`check` 把关，用法见 [`docs/assess.md`](docs/assess.md)）
+1. **能力对照表** —— 单场景全部环节的字段汇总，落 `data/`（首例：[`data/能力对照表.csv`](data/能力对照表.csv)，由 `src/cli.py assess --seed` 生成、`check` 把关，用法见 [`docs/assess.md`](docs/assess.md)）
 3. **决策判例与准则候选** —— AI 的实质决策与其暴露的隐含准则，落 `data/决策判例.csv` / `data/准则候选.csv`（两表互链），标注见「人机对齐」，采纳条目渲染进 [`docs/决策准则.md`](docs/决策准则.md)
 2. **偏差地图** —— 跨场景沉淀，记录每个环节的「预测值 vs 实测值」，得出该环节在该品类 / 该城市的可信度。比单个场景的成败更有复用价值（schema 与用法见 [`docs/deviation.md`](docs/deviation.md)）
 
 ```sh
-python3 src/assess.py --seed "docs/AI 辅助开店.md" --out data/能力对照表.csv
-python3 src/assess.py check data/能力对照表.csv   # 入库前必过，违规退出码 1
+python3 src/cli.py assess --seed "docs/AI 辅助开店.md" --out data/能力对照表.csv
+python3 src/cli.py assess check data/能力对照表.csv   # 入库前必过，违规退出码 1
+python3 src/cli.py check                           # 三张表全量门禁，违规退出码 1
 ```
 
 人机对齐（抽查 → 纠偏 → 分诊 → 重放）见 [`docs/alignment.md`](docs/alignment.md)，纠偏流水记 [`data/纠偏记录.md`](data/纠偏记录.md)。
 
 ## 测算工具
 
-`src/ledger.py` 把框架中的 A 类环节落成可执行计算：人均拆解、底料摊薄、三阶段达标线与盈亏平衡。
+`src/cli.py ledger`（领域逻辑在 `src/core/ledger.py`）把框架中的 A 类环节落成可执行计算：人均拆解、底料摊薄、三阶段达标线与盈亏平衡。
 
 **参数来源三级标注**，与上方字段的证据等级对齐，工具逐行在输出中标出：
 
@@ -117,11 +118,11 @@ python3 src/assess.py check data/能力对照表.csv   # 入库前必过，违�
 - `[L1]` 待回填。**缺失时拒绝计算该段并打印缺口，不代填数值**；退出码 `2` 表示有缺口
 
 ```sh
-python3 src/ledger.py selftest          # 12 项固定数学关系自检
-python3 src/ledger.py all               # 全部测算，L1 缺口会标出
-python3 src/ledger.py stall --daily 149 # 实测回填，判定达标
-python3 src/ledger.py shop --staff 8000 --utility 2000 --other-fixed 1000 --food-rate 0.35
-python3 src/ledger.py gaps              # 只看待回填项
+python3 src/cli.py ledger selftest          # 12 项固定数学关系自检
+python3 src/cli.py ledger all               # 全部测算，L1 缺口会标出
+python3 src/cli.py ledger stall --daily 149 # 实测回填，判定达标
+python3 src/cli.py ledger shop --staff 8000 --utility 2000 --other-fixed 1000 --food-rate 0.35
+python3 src/cli.py ledger gaps              # 只看待回填项
 ```
 
 边界：工具只算 A 类。C 类（现场、感官、随机性）的结果不进工具，也不因工具算得出而被视为已验证。
@@ -129,8 +130,8 @@ python3 src/ledger.py gaps              # 只看待回填项
 使用说明见 [`docs/ledger.md`](docs/ledger.md)。三层报表：
 
 ```sh
-python3 src/ledger.py report --mode shop --ticket 32:45 --traffic 15:20 --staff 1200 --utility 800 --food-rate 0.35
-python3 -m unittest discover -s tests   # 63 项回归，无图形环境可跑
+python3 src/cli.py ledger report --mode shop --ticket 32:45 --traffic 15:20 --staff 1200 --utility 800 --food-rate 0.35
+python3 -m unittest discover -s tests   # 78 项回归，无图形环境可跑
 ```
 
 **唯一策略**：缺 L1 不代填、不估算，拒绝计算（退出码 `2`）；数据完整度是结论的可信度指标，估算值不算已填。交互面只有两个：本 CLI 出数据，纠偏通道收人的判断（见「人机对齐」）。

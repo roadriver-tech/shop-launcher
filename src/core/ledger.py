@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
-"""算账工具：串串店三阶段达标线、人均结构与盈亏平衡测算。
+"""算账领域：串串店三阶段达标线、人均结构与盈亏平衡测算。
 
-用法
-    python3 src/ledger.py all [--mix 60:30:10]
-    python3 src/ledger.py per-head [--mix 60:30:10]
-    python3 src/ledger.py pot
-    python3 src/ledger.py stall [--mix 60:30:10] [--daily 180]
-    python3 src/ledger.py shop --staff 4000 --utility 1500 --food-rate 0.42
-    python3 src/ledger.py gaps
-    python3 src/ledger.py selftest
+用法不在这里，在唯一 CLI（`src/cli.py ledger`）：
+    python3 src/cli.py ledger all [--mix 60:30:10]
+    python3 src/cli.py ledger per-head [--mix 60:30:10]
+    python3 src/cli.py ledger pot
+    python3 src/cli.py ledger stall [--mix 60:30:10] [--daily 180]
+    python3 src/cli.py ledger shop --staff 4000 --utility 1500 --food-rate 0.42
+    python3 src/cli.py ledger gaps
+    python3 src/cli.py ledger selftest
 
 参数来源分三级，输出逐行标注
     [锁] 取自 data/火锅串串.md，已由实地探店校准，不得覆盖
     [L0] 未验证假设，必须显式给出；拿到探店数据后更新
     [L1] 待回填。缺失时本工具拒绝计算该段，不编造数值
 
-与 `AGENTS.md` 的关系：本工具只承担框架中 A 类（抽象推理）环节——
+与 `AGENTS.md` 的关系：本模块只承担框架中 A 类（抽象推理）环节——
 财务测算与盈亏平衡。B 类（本地数据）由 `--mix` 等参数喂入，
-C 类（现场、感官、随机性）不在计算范围内，其结果一律不进本工具。
+C 类（现场、感官、随机性）不在计算范围内，其结果一律不进本模块。
 """
 from __future__ import annotations
 
-import argparse
 import sys
 
 # ── [锁] 取自 data/火锅串串.md；若该文件的锁定项变动，同步改这里 ──
@@ -71,20 +70,6 @@ PARAM_LABEL = {
 }
 
 DAYS = 30  # 月天数：保本线与月利润的换算基数
-
-
-def parse_mix(text: str) -> tuple[float, float, float]:
-    """解析 `素:荤:招牌` 比例。"""
-    parts = text.split(":")
-    if len(parts) != 3:
-        raise argparse.ArgumentTypeError("mix 须为 素:荤:招牌 三段，如 60:30:10")
-    try:
-        vals = tuple(float(p) for p in parts)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError(f"mix 含非数字：{text}") from exc
-    if any(v < 0 for v in vals) or sum(vals) <= 0:
-        raise argparse.ArgumentTypeError("mix 须为非负且总和 > 0")
-    return vals  # type: ignore[return-value]
 
 
 def price_range(mix: tuple[float, float, float]) -> tuple[float, float]:
@@ -221,7 +206,7 @@ def verdict(multi: tuple[float, float]) -> str:
 
 
 def present(mode: str, params: dict) -> dict:
-    """三层报表数据层。CLI `report` 使用。
+    """三层报表数据层。`cli.py ledger report` 使用。
 
     params 取值为 None 表示未回填。不代填、不估算：缺失项进 missing，
     完整度 = 已填 / 该模式 L1 参数总数。
@@ -306,7 +291,8 @@ def present(mode: str, params: dict) -> dict:
         ("└ 水电其他", f"¥{r(fixed_parts[2] + fixed_parts[3])}", "L1"),
         ("食材成本率", pct(p["food_rate"]), "L1"),
         ("变动成本率", pct(varr), f"食材+损耗+底料 {pct(broth_rate)}"),
-        ("保本月流水", f"¥{r(d['be_month'])}", f"占月流水 {d['be_month'] / inc['month'][1] * 100:.0f}~{d['be_month'] / inc['month'][0] * 100:.0f}%"),
+        ("保本月流水", f"¥{r(d['be_month'])}",
+         f"占月流水 {d['be_month'] / inc['month'][1] * 100:.0f}~{d['be_month'] / inc['month'][0] * 100:.0f}%"),
     ]
     return out
 
@@ -377,6 +363,24 @@ def print_gaps(mix) -> None:
     print()
 
 
+def print_report(mode: str, params: dict) -> int:
+    """三层报表：`present()` 数据层的文本渲染。缺 L1 返回退出码 2。"""
+    res = present(mode, params)
+    print(f"══ 第一层：结论 ══    数据完整度 {res['completeness'] * 100:.0f}%")
+    for label, value, note in res["layer1"]:
+        print(f"  {label:<10} {value:<22} {note}")
+    print("\n══ 第二层：账怎么算的 ══")
+    for side in ("income", "cost"):
+        title = "收入侧" if side == "income" else "成本侧"
+        print(f"  [{title}]")
+        for label, value, tag in res["layer2"][side]:
+            print(f"    {label:<12} {value:<20} {tag}")
+    if res["missing"]:
+        print(f"\n  ⚠ 缺 L1：{'、'.join(PARAM_LABEL[k] for k in res['missing'])}")
+        print("    本工具不代填，探店/询价后回填再算")
+    return 2 if res["missing"] else 0
+
+
 def selftest() -> int:
     """固定数学关系，防止改代码时悄悄算错。"""
     checks = []
@@ -427,121 +431,6 @@ def selftest() -> int:
     return 1 if failed else 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="串串店算账工具")
-    sub = p.add_subparsers(dest="cmd")
-
-    def add_mix(sp):
-        sp.add_argument("--mix", type=parse_mix, default=DEFAULT_MIX,
-                        metavar="素:荤:招牌", help="签型比例 [L0]，默认 60:30:10")
-
-    def add_shop_args(sp):
-        sp.add_argument("--rev", type=float, default=LOCK["rev_floor"], help="月营业额 [锁]，默认达标线")
-        sp.add_argument("--rent", type=float, default=LOCK["rent_cap"], help="月租 [锁]，默认上限")
-        sp.add_argument("--staff", type=float, default=None, help="人工月成本 [L1]")
-        sp.add_argument("--utility", type=float, default=None, help="水电杂费月成本 [L1]")
-        sp.add_argument("--other-fixed", type=float, default=None, help="其他固定成本 [L1]")
-        sp.add_argument("--food-rate", type=float, default=None, help="食材成本率 [L1]，占营业额")
-
-    sp_all = sub.add_parser("all", help="全部测算")
-    add_mix(sp_all)
-    add_shop_args(sp_all)
-    add_mix(sub.add_parser("per-head", help="人均拆解"))
-    sub.add_parser("pot", help="底料摊薄")
-    sp = sub.add_parser("stall", help="摆摊阶段")
-    add_mix(sp)
-    sp.add_argument("--daily", type=int, default=None, help="实测日均签数 [L1]")
-
-    sp = sub.add_parser("shop", help="档口店阶段")
-    add_mix(sp)
-    add_shop_args(sp)
-
-    sub.add_parser("gaps", help="列出待回填项")
-    sub.add_parser("selftest", help="自检")
-    sp = sub.add_parser("report", help="三层报表（结论→账目→细算）")
-    sp.add_argument("--mode", choices=["stall", "shop"], default="shop")
-    add_mix(sp)
-    sp.add_argument("--daily", type=int, default=None, help="摆摊实测日均签数 [L1]")
-    sp.add_argument("--ticket", help="客单价区间，如 32:45 [L1]")
-    sp.add_argument("--traffic", help="日客流区间，如 15:20 [L1]")
-    add_shop_args(sp)
-
-    args = p.parse_args(argv)
-    cmd = args.cmd or "all"
-    mix = getattr(args, "mix", DEFAULT_MIX)
-
-    if cmd == "selftest":
-        return selftest()
-
-    missing: list[str] = []
-    if cmd in ("all", "per-head"):
-        print_head(mix)
-    if cmd == "pot" or cmd == "all":
-        print_pot()
-    if cmd in ("all", "stall"):
-        print_stall(mix, getattr(args, "daily", None))
-    if cmd in ("all", "shop"):
-        missing = print_shop(
-            mix,
-            getattr(args, "rev", LOCK["rev_floor"]),
-            getattr(args, "rent", LOCK["rent_cap"]),
-            getattr(args, "staff", None),
-            getattr(args, "utility", None),
-            getattr(args, "other_fixed", None),
-            getattr(args, "food_rate", None),
-        )
-    if cmd == "gaps" or cmd == "all":
-        print_gaps(mix)
-
-    if cmd == "report":
-        return print_report(args, mix)
-
-    return 2 if missing else 0
-
-
-def parse_range(text: str | None) -> tuple[float, float] | None:
-    """解析 `32:45` 区间。"""
-    if not text:
-        return None
-    parts = text.split(":")
-    if len(parts) != 2:
-        raise SystemExit(f"区间须为 低:高 两段：{text}")
-    lo, hi = float(parts[0]), float(parts[1])
-    if lo > hi:
-        raise SystemExit(f"区间下界大于上界：{text}")
-    return lo, hi
-
-
-def print_report(args, mix) -> int:
-    """三层报表：present() 数据层的文本渲染。"""
-    mode = args.mode
-    params = {
-        "mix": mix,
-        "daily": getattr(args, "daily", None),
-        "ticket": parse_range(getattr(args, "ticket", None)),
-        "traffic": parse_range(getattr(args, "traffic", None)),
-        "rent": getattr(args, "rent", None),
-        "staff": getattr(args, "staff", None),
-        "utility_other": getattr(args, "utility", None),
-        "other_fixed": getattr(args, "other_fixed", None),
-        "food_rate": getattr(args, "food_rate", None),
-    }
-    res = present(mode, params)
-
-    print(f"══ 第一层：结论 ══    数据完整度 {res['completeness'] * 100:.0f}%")
-    for label, value, note in res["layer1"]:
-        print(f"  {label:<10} {value:<22} {note}")
-    print("\n══ 第二层：账怎么算的 ══")
-    for side in ("income", "cost"):
-        title = "收入侧" if side == "income" else "成本侧"
-        print(f"  [{title}]")
-        for label, value, tag in res["layer2"][side]:
-            print(f"    {label:<12} {value:<20} {tag}")
-    if res["missing"]:
-        print(f"\n  ⚠ 缺 L1：{'、'.join(PARAM_LABEL[k] for k in res['missing'])}")
-        print("    本工具不代填，探店/询价后回填再算")
-    return 2 if res["missing"] else 0
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    print("算账入口在唯一 CLI：python3 src/cli.py ledger", file=sys.stderr)
+    raise SystemExit(2)

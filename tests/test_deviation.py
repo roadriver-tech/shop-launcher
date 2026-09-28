@@ -1,4 +1,4 @@
-"""deviation.py 的回归：schema 校验、偏差算术、缺数据不给空结论。"""
+"""core/deviation.py 的回归：schema 校验、偏差算术、缺数据不给空结论。"""
 from __future__ import annotations
 
 import contextlib
@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-import deviation as D  # noqa: E402
+from core import deviation as D  # noqa: E402
+import cli  # noqa: E402
 
 
 def rows(*raw: list[str]) -> list[dict]:
@@ -63,7 +64,7 @@ class TestDeviation(unittest.TestCase):
         buf = io.StringIO()
         try:
             with contextlib.redirect_stdout(buf):
-                code = D.main([])
+                code = cli.main(["deviation"])
         finally:
             D.MAP = saved
         self.assertEqual(code, 2)

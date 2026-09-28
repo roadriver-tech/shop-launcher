@@ -1,6 +1,6 @@
 # 算账工具使用说明
 
-`src/ledger.py` 的用户文档。回答三件事：它算什么、怎么调、结果怎么读。
+`src/cli.py ledger` 的用户文档（领域逻辑在 `src/core/ledger.py`）。回答三件事：它算什么、怎么调、结果怎么读。
 
 工具只做框架中 A 类（抽象推理）环节的测算 —— 财务与结构推导。它不预测口味、人流、现场，也不替你判断该不该开店。
 
@@ -9,13 +9,13 @@
 需要 Python 3.10+，无第三方依赖。在 `shop-launch/` 目录下运行：
 
 ```sh
-python3 src/ledger.py --help
+python3 src/cli.py ledger --help
 ```
 
 改了代码先跑自检，确认数学关系没被改坏：
 
 ```sh
-python3 src/ledger.py selftest    # 12 项全过才继续
+python3 src/cli.py ledger selftest    # 12 项全过才继续
 ```
 
 ## 参数的三级来源
@@ -50,7 +50,7 @@ python3 src/ledger.py selftest    # 12 项全过才继续
 ### 第一次跑，看清还缺什么
 
 ```sh
-python3 src/ledger.py all
+python3 src/cli.py ledger all
 ```
 
 不带参数跑，工具会用 `[锁]` 和 `[L0]` 算出能算的部分，把算不出来的列成缺口。此时退出码是 `2`，表示有待回填项 —— 这是预期结果，不是错误。
@@ -58,7 +58,7 @@ python3 src/ledger.py all
 ### 摆摊期回填实测
 
 ```sh
-python3 src/ledger.py stall --daily 149
+python3 src/cli.py ledger stall --daily 149
 ```
 
 ```
@@ -71,7 +71,7 @@ python3 src/ledger.py stall --daily 149
 ### 档口店测算
 
 ```sh
-python3 src/ledger.py shop \
+python3 src/cli.py ledger shop \
   --staff 8000 --utility 2000 --other-fixed 1000 --food-rate 0.35
 ```
 
@@ -123,7 +123,7 @@ python3 src/ledger.py shop \
 ## 三层报表
 
 ```sh
-python3 src/ledger.py report --mode shop \
+python3 src/cli.py ledger report --mode shop \
   --ticket 32:45 --traffic 15:20 --staff 1200 --utility 800 --food-rate 0.35
 ```
 
@@ -163,4 +163,4 @@ python3 src/ledger.py report --mode shop \
 
 - **不算 C 类**（现场、感官、随机性）。翻台率、口味、客流这些它碰不到 —— `gaps` 里列出它们正是因为无法计算
 - **数字不等于已验证**。工具输出是结构化推导，A 类论证再充分也不改变 B/C 类的证据等级
-- **`[锁]` 值有单一来源**。若 `data/火锅串串.md` 的锁定项变动，需同步改 `src/ledger.py` 中的 `LOCK` 字典（该对应关系在代码注释中标出）
+- **`[锁]` 值有单一来源**。若 `data/火锅串串.md` 的锁定项变动，需同步改 `src/core/ledger.py` 中的 `LOCK` 字典（该对应关系在代码注释中标出）

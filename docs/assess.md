@@ -1,6 +1,6 @@
 # 评估流水使用说明
 
-`src/assess.py` 的用户文档，对应 [TODO.md](../TODO.md) Phase 1。回答三件事：它推什么、怎么调、结果怎么读。
+`src/cli.py assess` 的用户文档（领域逻辑在 `src/core/assess.py`），对应 [TODO.md](../TODO.md) Phase 1。回答三件事：它推什么、怎么调、结果怎么读。
 
 流水只做框架的 A 类环节——把「决策环节 + 材料」推成**元评估判决**（能力分、输入依赖、证据等级 + 依据法条），并在入库前跑一致性检查。它不产生新证据：推导结果一律 L0 / 待验证，L1/L2 只由本地数据到达与实测触发，与人的表态脱钩（见 [alignment.md](alignment.md)）。标注主对象不是这张表——是 AI 的实质决策与隐含准则（`data/决策判例.csv`、`data/准则候选.csv`）；本表 `复核` 列仅保留改判终审（重放不覆盖）。
 
@@ -14,13 +14,13 @@ Python 3.10+，无第三方依赖。在 `shop-launch/` 目录下运行。
 |------|--------|------|
 | `--seed <md>` | 从对照表原文推导全表 | CSV（`--out` 落盘，缺省打印） |
 | `eval <环节> --material <材料>` | 新增环节出一行 | CSV 单行 |
-| `check <csv>` | 一致性检查 | 通过/违规清单，违规退出码 1 |
+| `check <csv>` | 一致性检查 | 通过/违规清单（每条带条文编号），违规退出码 1 |
 
 ## 最短可跑命令
 
 ```sh
-python3 src/assess.py --seed "docs/AI 辅助开店.md" --out data/能力对照表.csv
-python3 src/assess.py check data/能力对照表.csv
+python3 src/cli.py assess --seed "docs/AI 辅助开店.md" --out data/能力对照表.csv
+python3 src/cli.py assess check data/能力对照表.csv
 ```
 
 ```
@@ -31,7 +31,7 @@ data/能力对照表.csv：8 行
 新增一个环节：
 
 ```sh
-python3 src/assess.py eval 证照合规 --material "证照清单与办理流程能列全，滁州本地执法口径未核实"
+python3 src/cli.py assess eval 证照合规 --material "证照清单与办理流程能列全，滁州本地执法口径未核实"
 ```
 
 ```
@@ -43,7 +43,7 @@ python3 src/assess.py eval 证照合规 --material "证照清单与办理流程�
 
 ### 输入依赖的推导
 
-材料文本命中 C 词表（现场、感官、突发…）记 C，命中 B 词表（本地、锚点、人流…）记 B；能力分 ≥ 60 视作 AI 可交付的 A 类；两类都没命中记纯 A。分数带（`eval` 未显式给 `--score` 时）：纯 A 70 / A+C 60 / B 45。
+材料文本命中 C 词表（现场、感官、突发…）记 C，命中 B 词表（本地、锚点、人流…）记 B；能力分 ≥ 60 视作 AI 可交付的 A 类；两类都没命中记纯 A。分数带（`eval` 未显式给 `--score` 时）：纯 A 70 / 含 C 60 / 含 C+B 55 / 纯 B 45。
 
 **推导是建议，不是裁决。** 分数不合理就用 `--score` 覆盖；依赖判断错了用 `--dep` 显式给出（须配 `--score`，机器不猜分数）。
 
@@ -61,6 +61,6 @@ python3 src/assess.py eval 证照合规 --material "证照清单与办理流程�
 
 - **不升证据等级**。机器推导恒为 L0 / 待验证，L1 靠本地数据到达、L2 靠实测回填，人的复核表态不推进等级（`AGENTS.md` 硬约束）
 - **判例优先**。`--seed` 重放不覆盖 `复核 ∈ {维持, 改判}` 的行；改判是终审
-- **成文法的投影**。本脚本的词表、分数带、检查规则对应 `AGENTS.md` 条文——改条文先改那里，再同步这里重放（见 [alignment.md](alignment.md)）
-- **种子原文只读**。`docs/AI 辅助开店.md` 是迁入的原文，改的是推导规则（`src/assess.py`）与产出（`data/能力对照表.csv`）
-- **快更迭**。本脚本只服务当前一轮验证，规则变了就改，不维护兼容
+- **成文法的投影**。词表、分数带、检查规则的定义在 `src/core/rules.py`，违规消息带条文编号（如 `[检查§2]`）可反查章程——改 `AGENTS.md` 条文就改那里，再 `--seed` 重放；`tests/test_charter_binding.py` 断言条文与阈值同号同值，漂移即红（见 [alignment.md](alignment.md)）
+- **种子原文只读**。`docs/AI 辅助开店.md` 是迁入的原文，改的是推导规则（`src/core/assess.py` 与 `src/core/rules.py`）与产出（`data/能力对照表.csv`）
+- **快更迭**。本命令只服务当前一轮验证，规则变了就改，不维护兼容

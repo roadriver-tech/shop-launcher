@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-import ledger as L  # noqa: E402
+from core import ledger as L  # noqa: E402
 
 FULL = {
     "mix": L.DEFAULT_MIX, "ticket": (32, 45), "traffic": (15, 20),

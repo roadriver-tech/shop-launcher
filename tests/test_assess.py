@@ -1,4 +1,4 @@
-"""assess.py 的回归：一致性检查、判例推导与法条引用、判例优先重放。"""
+"""core/assess.py 的回归：一致性检查、判例推导与法条引用、判例优先重放。"""
 from __future__ import annotations
 
 import csv
@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-import assess  # noqa: E402
+from core import assess  # noqa: E402
 
 
 def row(name="定价", score="40", limit="给得出通用模型，但不知道本地已锚定 5 毛/签",

@@ -1,4 +1,4 @@
-"""review_gui 数据层的回归：两类标注、两表互链校验、成文法渲染。无图形环境可跑。"""
+"""gui.py 数据层的回归：两类标注、两表互链校验、成文法渲染。无图形环境可跑。"""
 from __future__ import annotations
 
 import sys
@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-import review_gui as G  # noqa: E402
+import gui as G  # noqa: E402
 
 
 def d_rows() -> list[list[str]]:
